@@ -1,0 +1,140 @@
+﻿<!DOCTYPE HTML>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>Таблеткоделитель</title>
+</head>
+<body>
+  <h1>Таблеткоделитель</h1>
+  <form>
+    <fieldset>
+      <legend>Параметры для расчета</legend>
+
+      <input type="radio" value="1" name="rgmode" checked="true" />Таблетка
+      <input type="radio" value="2" name="rgmode" />Раcтвор
+
+      <table cols="3">
+
+        <tr>
+          <td>Грамматура таблетки</td>
+          <td><input id="grammage" required="false" /></td>
+          <td>мг</td>
+        </tr>
+
+        <tr>
+          <td>Концентрация ДВ</td>
+          <td><input id="concentration" required="false" /></td>
+          <td>мг/мл</td>
+        </tr>
+
+        <tr>
+          <td>Дозировка</td>
+          <td><input id="doze" required="true" /></td>
+          <td>мг/кг</td>
+        </tr>
+
+        <tr>
+          <td>Вес животного</td>
+          <td><input id="mass" required="true" /></td>
+          <td>г</td>
+        </tr>
+      </table>
+
+    </fieldset>
+
+    <input type="submit" value="Рассчитать" />
+  </form>
+
+  <form>
+    <fieldset id="resblock">
+      <legend>Результат</legend>
+      <p id="restext">???</p>
+    </fieldset>
+
+  </form>
+  <script>
+    "strict mode"
+    let resblk = document.getElementById("resblock");
+    resblock.hidden = true;
+    RGModeChanged();
+    document.getElementsByName("rgmode")[0].onchange = RGModeChanged; // TODO: за один раз
+    document.getElementsByName("rgmode")[1].onchange = RGModeChanged;
+
+    // При любом пользовательском вводе прячем блок результатов
+    document.getElementById("grammage").oninput = () => { resblock.hidden = true };
+    document.getElementById("concentration").oninput = () => { resblock.hidden = true };
+    document.getElementById("doze").oninput = () => { resblock.hidden = true };
+    document.getElementById("mass").oninput = () => { resblock.hidden = true };
+
+    document.forms[0].onsubmit = Calculate;
+
+    function RGModeChanged() {
+      let rgmode = document.getElementsByName("rgmode");
+      let rgmodevalue = rgmode[0].checked ? 1 : 2;
+      document.getElementById("grammage").disabled = rgmodevalue != 1;
+      document.getElementById("grammage").required = rgmodevalue == 1;
+
+      document.getElementById("concentration").disabled = rgmodevalue != 2;
+      document.getElementById("concentration").required = rgmodevalue == 2;
+      resblock.hidden = true;
+    }
+
+    function Calculate() {
+      try {
+        let doze = getNumValue("doze") / 1000; // в мг/г
+        let mass = getNumValue("mass");
+        let doze2 = doze * mass;
+
+        let s = "Для животного с массой " + mass + " г. требуется доза " + Math.round(doze2 * 1000) / 1000 + " мг.\n";
+
+        if (document.getElementsByName("rgmode")[0].checked) {
+          // таблетка
+          let grammage = getNumValue("grammage");
+          let pillCount = doze * mass / grammage;
+
+          //s += "doze=" + doze + ", grammage=" + grammage + ", pillCount=" + pillCount;
+
+          s += "Это составляет " + Math.round(pillCount * 1000) / 1000 + " таблетки";
+
+          if (pillCount < 1.0) {
+            let x1 = Math.round(1.0 / pillCount);
+            let pc2 = 1.0 / x1;
+            let dev = Math.abs(pillCount - pc2) / pillCount * 100;
+            if (dev <= 20.0) {
+              s += " (1/" + x1 + " таблетки";
+              if (dev > 1.0) {
+                s += " с точностью " + Math.trunc(dev) + "%";
+              }
+              s += ")";
+            }
+          }
+        }
+        else {
+          // раствор
+          let concentration = getNumValue("concentration"); // в мг/мл
+          let volume = doze * mass / concentration;
+
+          s += "Это составляет " + Math.round(volume * 1000) / 1000 + " мл раствора";
+        }
+
+        restext.innerText = s;
+      }
+      catch (e) {
+        restext.innerText = "Ошибка. " + e.message;
+      }
+      resblock.hidden = false;
+      return false;
+    }
+
+    function getNumValue(id) {
+      let elem = document.getElementById(id);
+      //return Number.parseFloat(elem.value); // Тут бяка. Если не тот разднлитель дробной части, то будет целое число, и никакой ошибки
+      let value = Number(elem.value); // Тут будет NaN, если неправильно
+      if (isNaN(value))
+        throw new Error("Строку \"" + elem.value + "\" нельзя преобразовать в число");
+      return value;
+    }
+
+  </script>
+</body>
+</html>
